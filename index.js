@@ -5,8 +5,6 @@ const bodyParser = require('body-parser')
 const connectDB = require('./database')
 const mongoose = require('mongoose')
 
-require('dotenv').config()
-
 connectDB()
 const User = require('./src/model/User')
 
@@ -94,14 +92,21 @@ app.get('/api/users/:_id/logs', (req, res) => {
     {
       $group: {
         _id: '$_id',
+        username: { $first: '$username' },
         count: { $sum: 1 },
-        logs: { $push: '$log' }
+        log: { $push: '$log' }
       }
     },
-    { $limit : parsedLimit }
+    {
+      $project: {
+        username: 1,
+        count: 1,
+        log: { $slice: ['$log', parsedLimit] },  
+      }
+    },
   ])
   .then(result => {
-    return res.json(result)
+    return res.json(result[0])
   })
   .catch(err => {
     console.error(err)

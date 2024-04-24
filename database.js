@@ -1,10 +1,9 @@
-// Defines database connection
-// This class is a singleton (single instance) of Database class
+require('dotenv').config()
 let mongoose = require('mongoose')
 
 const connectDB = async () => {
   try {
-    await mongoose.connect('mongodb+srv://sitti:sitti_mongodb@cluster0.zxchbn0.mongodb.net/fcc-mongodb-and-mongoose?retryWrites=true&w=majority&appName=Cluster0')
+    await mongoose.connect(process.env.MONGO_DB_URI)
     console.log('Database connection successful')
   } catch (err) {
     console.error('Database connection error:', err)
