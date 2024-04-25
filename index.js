@@ -14,24 +14,40 @@ app.use(express.static('public'))
 app.use(bodyParser.urlencoded({ extended: 'false' }))
 app.use(bodyParser.json())
 
+
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/views/index.html')
 })
 
-app.post('/api/users', (req, res) => {
-  const username = req.body.username
-  const user = new User({
-    username: username
-  })
-
-  user.save()
-  res.json(user)
+app.get('/api/users', (req, res) => {
+  User.find()
+      .select('username _id')
+      .then(users => {
+        res.json(users)
+      })
+      .catch(err => {
+        console.error(err)
+        res.status(500).json({ message: 'Failed to fetch users' })
+      })
 })
 
-const findUserById = (userId) => {
-  const user = User.findById(userId)
-  return user
-};
+app.post('/api/users', (req, res) => {
+  const username = req.body.username
+  User.create({
+    username: username
+  })
+  .then(user => {
+    const response = {
+      username: user.username,
+      _id: user._id
+    };
+    res.json(response)
+  })
+  .catch(err => {
+    console.error(err)
+    res.status(500).json({ message: 'Failed to create users' })
+  })
+})
 
 app.post('/api/users/:_id/exercises', (req, res) => {
   const userId = req.params._id
@@ -63,11 +79,12 @@ app.post('/api/users/:_id/exercises', (req, res) => {
       _id: updatedUser._id
     };
 
-    return res.json(response)
+    res.json(response)
   })
   .catch(err => {
-    console.error(err)        // Handle possible errors
-  });
+    console.error(err)
+    res.status(500).json({ message: 'Failed to find and create exercise' })
+  })
 })
 
 app.get('/api/users/:_id/logs', (req, res) => {
@@ -93,25 +110,36 @@ app.get('/api/users/:_id/logs', (req, res) => {
       $group: {
         _id: '$_id',
         username: { $first: '$username' },
-        count: { $sum: 1 },
         log: { $push: '$log' }
       }
     },
     {
       $project: {
         username: 1,
-        count: 1,
         log: { $slice: ['$log', parsedLimit] },  
       }
     },
   ])
   .then(result => {
-    return res.json(result[0])
+    const user = result[0]
+    if (user && user.log) {  // Ensure user and user.log are defined
+      user.count = user.log.length
+      user.log = user.log.map(logEntry => {
+        return {
+          description: logEntry.description,
+          duration: logEntry.duration,
+          date: logEntry.date.toDateString()  // Format the date
+        }
+      })
+      res.json(user)
+    } else {
+      res.json(result)
+    }
   })
   .catch(err => {
     console.error(err)
     res.status(500).json({ message: 'Failed to fetch logs' })
-  });
+  })
 })
 
 const listener = app.listen(process.env.PORT || 3000, () => {
